@@ -18,6 +18,11 @@ import {
   exportPublicKey
 } from './src/issuer.js';
 
+import {
+  verifyCredential,
+  decodePublicKey
+} from './src/verifier.js';
+
 async function main() {
   console.log('╔════════════════════════════════════════════════════════════════╗');
   console.log('║     VERIFIABLE CREDENTIALS v2.0 - UNIVERSITY DEGREE EXAMPLE    ║');
@@ -162,16 +167,110 @@ async function main() {
   console.log(JSON.stringify(publicKeyExport, null, 2));
   console.log();
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 6: VERIFY THE CREDENTIAL
+  // ═══════════════════════════════════════════════════════════════════════════
+  //
+  // Now let's demonstrate verification! A verifier (e.g., an employer)
+  // would receive this credential from Jane and verify it.
+  //
+  // In production, the verifier would:
+  // 1. Receive the credential from the holder (Jane)
+  // 2. Look up the issuer's public key from their DID document
+  // 3. Verify the signature
+  //
+  // Here we simulate this using the public key we exported earlier.
+
   console.log('═'.repeat(70));
-  console.log('HOW VERIFICATION WORKS:');
+  console.log('🔍 Step 6: Verifying the credential...\n');
+
+  // In production, the verifier would fetch this from the issuer's DID document
+  // Here we decode it from our exported public key
+  const decodedPublicKey = decodePublicKey(publicKeyExport.publicKeyMultibase);
+
+  const verificationResult = await verifyCredential(verifiableCredential, decodedPublicKey);
+
+  console.log('   Verification checks:');
+  console.log(`     ├─ Has proof object: ${verificationResult.checks.hasProof ? '✅' : '❌'}`);
+  console.log(`     ├─ Proof type valid: ${verificationResult.checks.proofType ? '✅' : '❌'}`);
+  console.log(`     ├─ Cryptosuite valid: ${verificationResult.checks.cryptosuite ? '✅' : '❌'}`);
+  console.log(`     └─ Signature valid: ${verificationResult.checks.signatureValid ? '✅' : '❌'}`);
+  console.log();
+
+  if (verificationResult.verified) {
+    console.log('   ✅ CREDENTIAL VERIFIED SUCCESSFULLY!\n');
+    console.log('   This means:');
+    console.log('     • The credential was signed by the issuer');
+    console.log('     • The credential has not been tampered with');
+    console.log('     • The signature is mathematically valid\n');
+  } else {
+    console.log('   ❌ VERIFICATION FAILED');
+    console.log('   Errors:', verificationResult.errors);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 7: DEMONSTRATE TAMPER DETECTION
+  // ═══════════════════════════════════════════════════════════════════════════
+  //
+  // Let's show what happens if someone tries to modify the credential.
+  // The signature verification will fail because the hash won't match.
+
+  console.log('═'.repeat(70));
+  console.log('🛡️  Step 7: Demonstrating tamper detection...\n');
+
+  // Create a tampered copy of the credential
+  const tamperedCredential = JSON.parse(JSON.stringify(verifiableCredential));
+  tamperedCredential.credentialSubject.degree.name = 'Doctor of Philosophy in Computer Science';
+
+  console.log('   Attempting to verify a tampered credential...');
+  console.log('   (Changed degree from "Bachelor" to "Doctor of Philosophy")\n');
+
+  const tamperedResult = await verifyCredential(tamperedCredential, decodedPublicKey);
+
+  console.log('   Verification checks:');
+  console.log(`     ├─ Has proof object: ${tamperedResult.checks.hasProof ? '✅' : '❌'}`);
+  console.log(`     ├─ Proof type valid: ${tamperedResult.checks.proofType ? '✅' : '❌'}`);
+  console.log(`     ├─ Cryptosuite valid: ${tamperedResult.checks.cryptosuite ? '✅' : '❌'}`);
+  console.log(`     └─ Signature valid: ${tamperedResult.checks.signatureValid ? '✅' : '❌'}`);
+  console.log();
+
+  if (!tamperedResult.verified) {
+    console.log('   ❌ TAMPERED CREDENTIAL DETECTED!\n');
+    console.log('   The signature verification failed because:');
+    console.log('     • The credential content was modified');
+    console.log('     • The hash no longer matches the signed hash');
+    console.log('     • Any change, no matter how small, invalidates the signature\n');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SUMMARY
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  console.log('═'.repeat(70));
+  console.log('📚 SUMMARY: THE COMPLETE VC LIFECYCLE');
   console.log('═'.repeat(70));
   console.log(`
-1. A verifier receives this credential from Jane
-2. They look up the issuer's public key from: ${publicKeyExport.id}
-3. They re-canonicalize the credential (same process as signing)
-4. They compute the SHA-256 hash
-5. They verify the signature using the public key
-6. If valid → The credential is authentic and unmodified!
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         ISSUANCE (Steps 1-5)                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│  1. Generate key pair (Ed25519)                                         │
+│  2. Build credential with claims                                        │
+│  3. Canonicalize (JCS) → deterministic bytes                            │
+│  4. Hash (SHA-256) → fixed-size fingerprint                             │
+│  5. Sign hash with private key → proof                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         VERIFICATION (Step 6)                           │
+├─────────────────────────────────────────────────────────────────────────┤
+│  1. Extract proof from credential                                       │
+│  2. Remove proof to get unsigned credential                             │
+│  3. Canonicalize (same as issuance)                                     │
+│  4. Hash (same as issuance)                                             │
+│  5. Verify signature with public key                                    │
+│  6. If valid → credential is authentic!                                 │
+└─────────────────────────────────────────────────────────────────────────┘
 `);
 }
 

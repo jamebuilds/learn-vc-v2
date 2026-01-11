@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Educational implementation of W3C Verifiable Credentials Data Model 2.0 using Ed25519 cryptography. This is a pure Node.js ES6 module library focused on demonstrating credential issuance.
+Educational implementation of W3C Verifiable Credentials Data Model 2.0 using Ed25519 cryptography. This is a pure Node.js ES6 module library demonstrating both credential issuance and verification.
 
 ## Commands
 
 ```bash
 npm install        # Install dependencies
-npm run example    # Run the credential issuance demonstration
+npm run example    # Run the credential issuance and verification demonstration
 ```
 
 No build, test, or lint scripts are configured—this is an intentionally minimal educational project.
@@ -32,14 +32,33 @@ Three exported functions:
 
 3. **`exportPublicKey(publicKey, issuerId)`** - Formats public key in multikey format for DID documents
 
+### Verifier Module: `src/verifier.js`
+
+Two exported functions:
+
+1. **`verifyCredential(credential, publicKey)`** - Main credential verification with 4-step process:
+   - Extract and validate proof object
+   - Reconstruct unsigned credential (remove proof)
+   - Canonicalize and hash (same as issuance)
+   - Verify Ed25519 signature against hash
+   - Returns detailed result with checks and errors
+
+2. **`decodePublicKey(publicKeyMultibase)`** - Decodes public key from multibase format (`z6Mk...`)
+
 ### Helper Functions (internal)
 
-- `canonicalize(obj)` - JSON Canonicalization Scheme implementation
-- `base64urlEncode(bytes)` - URL-safe base64 encoding
+- `canonicalize(obj)` - JSON Canonicalization Scheme implementation (both modules)
+- `base64urlEncode(bytes)` - URL-safe base64 encoding (issuer)
+- `base64urlDecode(str)` - URL-safe base64 decoding (verifier)
 
 ### Example: `example.js`
 
-Demonstrates issuing a university degree credential with key generation, credential subject definition, and formatted output explanation.
+Demonstrates the complete VC lifecycle:
+1. Key generation
+2. Credential subject definition
+3. Credential issuance
+4. Credential verification (valid credential)
+5. Tamper detection (modified credential fails verification)
 
 ## Cryptographic Stack
 
