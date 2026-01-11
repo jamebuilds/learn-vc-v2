@@ -51,14 +51,40 @@ Two exported functions:
 - `base64urlEncode(bytes)` - URL-safe base64 encoding (issuer)
 - `base64urlDecode(str)` - URL-safe base64 decoding (verifier)
 
-### Example: `example.js`
+### Selective Disclosure Module: `src/selective-disclosure.js`
 
-Demonstrates the complete VC lifecycle:
+Three exported functions for privacy-preserving credentials:
+
+1. **`issueSDCredential(params)`** - Issue credential with selectively disclosable fields:
+   - Takes `disclosablePaths` array specifying which fields can be hidden
+   - Replaces each field with `{ "_sd": hash }` where hash = SHA-256(salt + path + value)
+   - Returns `{ credential, disclosures }` - holder keeps disclosures private
+
+2. **`createSDPresentation(credential, disclosures, pathsToReveal)`** - Holder creates presentation:
+   - Selects which disclosures to include (fields to reveal)
+   - Non-revealed fields remain as hashes (verifier can't see them)
+
+3. **`verifySDPresentation(presentation, publicKey)`** - Verify selective disclosure presentation:
+   - Verifies credential signature (issuer signed it)
+   - Recomputes hashes for each disclosure and compares to credential
+   - Returns `{ verified, disclosedClaims, checks, errors }`
+
+### Examples
+
+**`example.js`** - Basic VC lifecycle:
 1. Key generation
 2. Credential subject definition
 3. Credential issuance
 4. Credential verification (valid credential)
 5. Tamper detection (modified credential fails verification)
+
+**`example-sd.js`** - Selective disclosure demonstration:
+1. Issue SD-enabled credential with disclosable fields
+2. Jane creates presentation revealing ONLY degree type
+3. Employer verifies and sees only the degree type, not name
+4. Tamper detection for modified disclosures
+
+Run with: `node example-sd.js`
 
 ## Cryptographic Stack
 
